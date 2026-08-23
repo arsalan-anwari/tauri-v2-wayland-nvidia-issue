@@ -1,0 +1,31 @@
+From: wayland nvidia crash investigation
+Subject: [PATCH] gdk/wayland: do not attach an SHM buffer to an EGL-backed surface
+
+gdk_cairo_draw_from_gl() creates the window's paint GL context, and with it the EGL surface for the toplevel wl_surface, from inside a draw handler. When the frame in progress began as a cairo/SHM frame, current_paint.use_gl is FALSE for
+that frame, so end_paint attaches the SHM buffer to a surface that the EGL implementation has meanwhile taken over.
+
+On Nvidia, egl-wayland arms explicit sync (wp_linux_drm_syncobj_surface_v1) for every EGLSurface, so that attach has no acquire point and the compositor raises a protocol error: "explicit sync is used, but no acquire point is set", which
+GDK reports as "Error 71 (Protocol error) dispatching to Wayland display".
+
+Skip the attach once the window is EGL-backed. The next frame is a GL frame and paints the correct contents.
+
+See https://gitlab.gnome.org/GNOME/gtk/-/issues/8056
+---
+ gdk/wayland/gdkwindow-wayland.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+--- a/gdk/wayland/gdkwindow-wayland.c
++++ b/gdk/wayland/gdkwindow-wayland.c
+@@ -905,6 +905,12 @@ gdk_wayland_window_attach_image (GdkWindow *window)
+   if (GDK_WINDOW_DESTROYED (window))
+     return;
+ 
++  /* The EGL implementation owns the buffer state of this surface once an EGL
++   * window has been created for it, and may have armed explicit sync on it.
++   * Attaching an SHM buffer here is a protocol error in that case. */
++  if (impl->display_server.egl_window != NULL || impl->egl_surface != NULL)
++    return;
++
+   g_assert (_gdk_wayland_is_shm_surface (impl->staging_cairo_surface));
+ 
+   /* Attach this new buffer to the surface */

@@ -1,0 +1,7 @@
+# compiled reproducers
+repro/01-webkit
+repro/02-glarea
+repro/03-plain
+repro/04-drawfromgl
+repro/05-earlygl
+repro/06-webkit-earlygl
