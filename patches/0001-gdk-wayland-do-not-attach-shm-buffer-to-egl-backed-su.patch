@@ -20,9 +20,6 @@ See https://gitlab.gnome.org/GNOME/gtk/-/issues/8056
    if (GDK_WINDOW_DESTROYED (window))
      return;
  
-+  /* The EGL implementation owns the buffer state of this surface once an EGL
-+   * window has been created for it, and may have armed explicit sync on it.
-+   * Attaching an SHM buffer here is a protocol error in that case. */
 +  if (impl->display_server.egl_window != NULL || impl->egl_surface != NULL)
 +    return;
 +
